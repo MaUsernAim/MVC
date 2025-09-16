@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vue App</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f0;
+            padding: 0%;
+        }
+        
+        #app {
+            width: 100%;
+            max-width: 1200px;
+            height: 90vh;
+        }
+        
+        .window {
+            display: flex;
+            height: 100%;
+            gap: 20px;
+        }
+        
+        .input_window {
+            flex: 3; /* 75% ширины */
+            border: 3px solid black;
+            background-color: white;
+            border-radius: 10px;
+            padding: 0px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #666;
+        }
+        
+        .button_area {
+            flex: 1; /* 25% ширины */
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 0px;
+            border: 3px solid red;
+            background-color: yellowgreen;
+            border-radius: 10px;
+        }
+        
+        button {
+            padding: 0px 0px;
+            border: 2px solid #333;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        /* Заготовки для будущего */
+        .hidden-element {
+            display: none;
+        }
+        
+        .placeholder {
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="window">
+            <div class="button_area">
+                <button @click="openFileManager">добавить</button>
+                <button @click="clearFiles">удалить</button>
+                 <button @click="getLocal">get</button>
+                <button @click="nextSpace">изменить хранилище</button>
+                <button @click="description">{{getData}}</button>
+                <p>{{space}}</p>
+                <p>{{statusMessage}}</p>
+                <p>{{getData}}</p>
+                <p>{{localData}}</p>
+                <input 
+                    type="file"
+                    ref="fileInput"
+                    multiple
+                    @change="onFileSelected"
+                    style="display: none">
+            </div>
+            
+            <div class="input_window">
+                <div v-if="!message">Введите данные...</div>
+                <div v-else>{{ message }}</div>
+            </div>
+        </div>
+    </div>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script>
+Vue.createApp({
+  data() {
+    return {
+      space: "desktop",
+      selectedFiles: [],
+      statusMessage: "",
+      message: "",
+      getData:"",
+    }
+  },
+  methods: {
+     async getLocal() {
+                    try {
+                        const response = await fetch('/data/getLocal', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            this.getData=data;
+                            this.localData = data.localData || [];
+                            this.cloudData = data.cloudData || [];
+                            this.statusMessage = "Данные успешно получены";
+                        } else {
+                            this.statusMessage = "Ошибка получения данных";
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        this.statusMessage = "Ошибка соединения";
+                    }
+                },
+    openFileManager() {
+      this.$refs.fileInput.click();
+    },
+
+    async onFileSelected(event) {
+      this.selectedFiles = Array.from(event.target.files);
+      console.log('Выбрано файлов:', this.selectedFiles.length);
+      
+      // Обрабатываем каждый файл
+      for (const file of this.selectedFiles) {
+        try {
+          // 1. Отправляем метаданные
+          const fileData = {
+            name: file.name,
+            type: file.type,
+            size: file.size
+          };
+          
+          const metaResponse = await fetch("/data/dataFile", {
+            method: "POST",
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(fileData)
+          });
+          
+          if (!metaResponse.ok) {
+            throw new Error(`Metadata error: ${metaResponse.statusText}`);
+          }
+          
+          // 2. Отправляем сам файл
+          const formData = new FormData();
+          formData.append('file', file);
+          
+          const uploadResponse = await fetch('/upload', {
+            method: 'POST',
+            body: formData
+          });
+          
+          if (!uploadResponse.ok) {
+            throw new Error(`Upload error: ${uploadResponse.statusText}`);
+          }
+          
+          this.statusMessage = `Файл ${file.name} успешно загружен`;
+          
+        } catch (error) {
+          console.error('Ошибка загрузки:', error);
+          this.statusMessage = `Ошибка: ${error.message}`;
+        }
+      }
+    },
+
+    clearFiles() {
+      this.selectedFiles = [];
+      this.statusMessage = "Файлы очищены";
+    },
+    
+    nextSpace() {
+      // Ваша реализация
+    },
+    
+    description() {
+      // Ваша реализация
+    }
+  }
+}).mount('#app');
+    </script>
+</body>
